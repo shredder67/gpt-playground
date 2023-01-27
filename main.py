@@ -8,7 +8,7 @@ import torch
 DATA_PATH = './data/input.txt'
 BATCH_SIZE = 32
 TRAIN_EPOCH_NUM_STEPS = 1000
-TEST_EPOCH_NUM_STEPS = 200
+TEST_EPOCH_NUM_STEPS = 500
 LEARNING_RATE = 1e-2
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -22,8 +22,6 @@ def generate_sample_text(model: BigramLanguageModel, text_length: int, decode_f:
     predicted_seq = model.generate(idx, max_new_tokens=text_length)[0].tolist()
     text = decode_f(predicted_seq)
     return text
-
-# TODO: fix train/eval loop of  bigram lm 
 
 def main():
     train_ds, test_ds = preprocess_data(DATA_PATH)
@@ -43,7 +41,7 @@ def main():
 
     m = BigramLanguageModel(train_ds.vocab_size).to(DEVICE)
     
-    print(train_lm(m, train_block_reader, test_block_reader, LEARNING_RATE))
+    train_lm(m, train_block_reader, test_block_reader, LEARNING_RATE)
 
     m.eval()
     print(generate_sample_text(m, text_length=20, decode_f=train_ds._decode))

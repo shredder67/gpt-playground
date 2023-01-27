@@ -34,15 +34,23 @@ class BlockReader:
         self.batch_size = batch_size
         self.length_before_new_iter = length_before_new_iter
         self.device = device
+        self.cur = 0
+        self._track_state = True # little hack to no break reader during evaluation
+
+    def enable_state_update(self):
+        self._track_state = True
+
+    def disable_state_update(self):
+        self._track_state = False
 
     def __iter__(self):
-        self.cur = 0
         return self
 
     def __next__(self):
         if self.cur >= self.length_before_new_iter:
             raise StopIteration
-        self.cur += 1
+        if self._track_state:
+            self.cur += 1
         ix = torch.randint(len(self.text_dataset) - self.block_size, size=(self.batch_size,))
         x = torch.stack([self.text_dataset[i : i + self.block_size] for i in ix]).to(self.device)
         y = torch.stack([self.text_dataset[i + 1: i + self.block_size + 1] for i in ix]).to(self.device)
@@ -58,7 +66,7 @@ def read_text_data(datapath):
 def preprocess_data(datapath='./data/input.txt') -> Tuple[TextDataset, TextDataset]:
     raw_text = read_text_data(datapath)
 
-    n = len(raw_text)
+    n = int(0.9 * len(raw_text))
     train_text = raw_text[:n]
     test_text = raw_text[n:]
 

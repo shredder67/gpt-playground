@@ -45,6 +45,7 @@ def eval_train_test_loss(model, train_br, test_br):
     eval_steps = test_br.length_before_new_iter 
     performance = {}
     model.eval()
+    train_br.disable_state_update()
     for split in ['train', 'test']:
         losses = torch.zeros((eval_steps,))
         br_iter = iter(train_br) if split=='train' else iter(test_br)
@@ -52,6 +53,8 @@ def eval_train_test_loss(model, train_br, test_br):
             xb, yb = next(br_iter)
             losses[i] = model(xb, yb)[1].item()
         performance[split] = torch.mean(losses)
+    model.train()
+    train_br.enable_state_update()
     return performance
 
 
@@ -60,11 +63,10 @@ def train_lm(model, train_blockreader, test_blockreader, learning_rate=1e-3, eva
     for i, (xb, yb) in enumerate(train_blockreader):
         if i % eval_every_iter == 0:
             losses = eval_train_test_loss(model, train_blockreader, test_blockreader)
-            print(f"step {i}#: train_loss: {losses['train']:.4f}, test_loss: {losses['test']:.4f}")
+            print(f"step #{i} train_loss: {losses['train']:.4f}, test_loss: {losses['test']:.4f}")
         optimizer.zero_grad()
-        logits, loss = model(xb, yb)
+        _, loss = model(xb, yb)
         loss.backward()
         optimizer.step()
 
-    return loss.item()
     
