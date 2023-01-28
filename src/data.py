@@ -1,3 +1,4 @@
+from collections.abc import Iterable, Iterator
 from typing import Tuple
 
 import torch
@@ -26,7 +27,7 @@ class TextDataset:
         return self.data[idx]
 
 
-class BlockReader:
+class BlockReader(Iterable):
     """Block sized data loader for auto-regression task."""
     def __init__(self, text_dataset, block_size=8, batch_size=4, length_before_new_iter=1000, device='cpu'):
         self.text_dataset = text_dataset
@@ -34,26 +35,26 @@ class BlockReader:
         self.batch_size = batch_size
         self.length_before_new_iter = length_before_new_iter
         self.device = device
+
+    def __iter__(self):
+        return BlockReaderIterator(self)
+
+
+class BlockReaderIterator(Iterator):
+    def __init__(self, reader: BlockReader):
+        self.reader = reader
         self.cur = 0
-        self._track_state = True # little hack to no break reader during evaluation
-
-    def enable_state_update(self):
-        self._track_state = True
-
-    def disable_state_update(self):
-        self._track_state = False
 
     def __iter__(self):
         return self
 
-    def __next__(self):
-        if self.cur >= self.length_before_new_iter:
+    def __next__(self) -> Tuple[torch.Tensor, torch.Tensor]:
+        if self.cur > self.reader.length_before_new_iter:
             raise StopIteration
-        if self._track_state:
-            self.cur += 1
-        ix = torch.randint(len(self.text_dataset) - self.block_size, size=(self.batch_size,))
-        x = torch.stack([self.text_dataset[i : i + self.block_size] for i in ix]).to(self.device)
-        y = torch.stack([self.text_dataset[i + 1: i + self.block_size + 1] for i in ix]).to(self.device)
+        self.cur += 1
+        ix = torch.randint(len(self.reader.text_dataset) - self.reader.block_size, size=(self.reader.batch_size,))
+        x = torch.stack([self.reader.text_dataset[i : i + self.reader.block_size] for i in ix]).to(self.reader.device)
+        y = torch.stack([self.reader.text_dataset[i + 1: i + self.reader.block_size + 1] for i in ix]).to(self.reader.device)
         return x, y
 
 

@@ -7,7 +7,7 @@ import torch
 
 DATA_PATH = './data/input.txt'
 BATCH_SIZE = 32
-TRAIN_EPOCH_NUM_STEPS = 1000
+TRAIN_EPOCH_NUM_STEPS = 10_000
 TEST_EPOCH_NUM_STEPS = 500
 LEARNING_RATE = 1e-2
 
@@ -18,10 +18,12 @@ random.seed(RAND_SEED)
 torch.manual_seed(RAND_SEED)
 
 def generate_sample_text(model: BigramLanguageModel, text_length: int, decode_f: Callable) -> str:
-    idx = torch.zeros((1, 1), dtype=torch.long)
+    model.eval()
+    idx = torch.zeros((1, 1), dtype=torch.long).to(DEVICE)
     predicted_seq = model.generate(idx, max_new_tokens=text_length)[0].tolist()
     text = decode_f(predicted_seq)
     return text
+
 
 def main():
     train_ds, test_ds = preprocess_data(DATA_PATH)
@@ -43,7 +45,6 @@ def main():
     
     train_lm(m, train_block_reader, test_block_reader, LEARNING_RATE)
 
-    m.eval()
     print(generate_sample_text(m, text_length=20, decode_f=train_ds._decode))
 
 if __name__ == "__main__":

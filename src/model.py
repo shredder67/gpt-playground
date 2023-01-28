@@ -45,7 +45,6 @@ def eval_train_test_loss(model, train_br, test_br):
     eval_steps = test_br.length_before_new_iter 
     performance = {}
     model.eval()
-    train_br.disable_state_update()
     for split in ['train', 'test']:
         losses = torch.zeros((eval_steps,))
         br_iter = iter(train_br) if split=='train' else iter(test_br)
@@ -54,7 +53,6 @@ def eval_train_test_loss(model, train_br, test_br):
             losses[i] = model(xb, yb)[1].item()
         performance[split] = torch.mean(losses)
     model.train()
-    train_br.enable_state_update()
     return performance
 
 
