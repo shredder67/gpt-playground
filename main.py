@@ -9,11 +9,11 @@ import torch
 
 DATA_PATH = './data/input.txt'
 BATCH_SIZE = 32
-TRAIN_EPOCH_NUM_STEPS = 1000
+TRAIN_EPOCH_NUM_STEPS = 5000
 TEST_EPOCH_NUM_STEPS = 200
 LEARNING_RATE = 1e-3
 EMBEDDING_SIZE = 32
-BLOCK_SIZE = 32
+BLOCK_SIZE = 8
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -22,8 +22,18 @@ random.seed(RAND_SEED)
 torch.manual_seed(RAND_SEED)
 
 argparser = argparse.ArgumentParser()
-argparser.add_argument('--save_model_as', type=str, default=None, help='saves model by name to /models folder')
-argparser.add_argument('--test_inference', type=str, default=None, help='tests inference of model loaded from /models folder by name')
+argparser.add_argument(
+    '--save_model_as', 
+    type=str, 
+    default=None, 
+    help='saves model by name to /models folder'
+)
+argparser.add_argument(
+    '--test_inference',
+    type=str, 
+    default=None,
+    help='tests inference of model loaded from /models folder by name'
+)
 
 
 def check_args(args):
@@ -88,6 +98,7 @@ def main():
         device=DEVICE
     )
 
+    
     m = BigramLMwithAttention(train_ds.vocab_size, EMBEDDING_SIZE, BLOCK_SIZE).to(DEVICE)
     train_lm(m, train_block_reader, test_block_reader, LEARNING_RATE)
     

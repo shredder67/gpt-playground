@@ -21,7 +21,7 @@ class TextDataset:
         return ''.join([self.itos[i] for i in indices])
     
     def __len__(self):
-        return self.vocab_size
+        return len(self.data)
     
     def __getitem__(self, idx):
         return self.data[idx]

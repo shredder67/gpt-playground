@@ -1,4 +1,4 @@
 from .data import *
 from .bigram_model import *
 from .train import *
-from .transformer_model import *
+from .attn_bigram_model import *
