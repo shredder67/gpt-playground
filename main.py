@@ -9,11 +9,11 @@ import torch
 
 DATA_PATH = './data/input.txt'
 BATCH_SIZE = 32
-TRAIN_EPOCH_NUM_STEPS = 200
+TRAIN_EPOCH_NUM_STEPS = 1000
 TEST_EPOCH_NUM_STEPS = 200
 LEARNING_RATE = 1e-3
 EMBEDDING_SIZE = 32
-BLOCK_SIZE = 8
+BLOCK_SIZE = 32
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -42,7 +42,6 @@ def check_args(args):
         if not os.path.exists('./models') \
             or not os.path.exists('./models/' + args.test_inference):
             raise ValueError(f'model with name "{args.test_inference}" does not exist in /models folder')
-        
 
 
 def generate_sample_text(model: nn.Module, text_length: int, decode_f: Callable, text_seed: str=None, encode_f: Callable=None) -> str:
@@ -95,7 +94,7 @@ def main():
     if args.save_model_as is not None:
         torch.save(m.state_dict(), f'./models/{args.save_model_as}')
 
-    print(generate_sample_text(m, text_length=20, decode_f=train_ds._decode))
+    print(generate_sample_text(m, text_length=100, decode_f=train_ds._decode))
 
 if __name__ == "__main__":
     main()

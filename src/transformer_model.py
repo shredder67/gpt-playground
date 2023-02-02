@@ -56,10 +56,23 @@ class SelfAttentionBlock(nn.Module):
         # when head is single, head_size is equal to emb_size, so shape is same to input
         
         return out
+    
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, head_size, block_size, emb_size, n_heads):
+        super().__init__()
+        self.head_size = head_size
+        self.n_heads = n_heads
+        self.heads = nn.ModuleList([SelfAttentionBlock(head_size, block_size, emb_size) for _ in range(n_heads)])
+
+    def forward(self, x):
+        heads = [head(x) for head in self.heads]
+        out = torch.cat(heads, dim=-1)
+        return out
 
 
 class BigramLMwithAttention(nn.Module):
-    def __init__(self, vocab_size, emb_size, block_size):
+    def __init__(self, vocab_size, emb_size, block_size, num_heads=4):
         super().__init__()
         self.block_size = block_size
         self.emb_size = emb_size
@@ -68,7 +81,7 @@ class BigramLMwithAttention(nn.Module):
         self.embedding = nn.Embedding(vocab_size, emb_size)
         self.pos_embedding = nn.Embedding(block_size, emb_size)
 
-        self.sa_head = SelfAttentionBlock(emb_size, block_size, emb_size) # at the moment, head_size == emb_size
+        self.sa_head = MultiHeadAttention(emb_size//num_heads, block_size, emb_size, num_heads) # at the moment, head_size == emb_size
 
         self.lm_head = nn.Linear(emb_size, vocab_size)
 
