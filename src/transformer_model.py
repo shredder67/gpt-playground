@@ -9,7 +9,7 @@ def cbow_average(x: torch.Tensor) -> torch.Tensor:
     B, T, C = x.shape
     wei = torch.tril(torch.ones(T, T)) # lower triangular matrix of ones
     wei /= wei.sum(dim=1, keepdim=True) # normalize row-wise
-    xbow = wei @ x # B(broadcasted)xTxT @ BxTxC => BxTxC
+    xbow = wei @ x # B(broadcasted)xTxT @ BxTxC => BxTxC, equivalent to meaning out previous rows for each row
     return xbow
 
 
@@ -29,10 +29,11 @@ def softmax_cbow_average(x: torch.Tensor) -> torch.Tensor:
 
 ### End of toy section ###
 
-# TODO: finish this
 class SelfAttentionBlock(nn.Module):
     """Single-head self-attention block"""
     def __init__(self, head_size, block_size, emb_size):
+        super().__init__()
+
         self.head_size = head_size
         self.key = nn.Linear(emb_size, head_size, bias=False) # what i look for
         self.query = nn.Linear(emb_size, head_size, bias=False) # what i have
@@ -40,16 +41,19 @@ class SelfAttentionBlock(nn.Module):
 
         self.register_buffer('mask', torch.tril(torch.ones(block_size, block_size)))
 
-    def forward(self, x, mask):
+    def forward(self, x):
+        b,t,c = x.shape
+
         k = self.key(x)
         q = self.query(x)
         v = self.value(x)
 
-        wei = q @ k.tranpose(-2, -1) # BxTxhead_size @ Bxhead_sizexT => BxTxT
-        wei /= self.head_size ** 0.5 # scale by sqrt(d_k), to make sure that softmax doesn't blow up
-        wei = wei.masked_fill(mask==0, float('-inf'))
+        wei = q @ k.transpose(-2, -1) # BxTxhead_size @ Bxhead_sizexT => BxTxT
+        wei *= self.head_size ** -0.5 # scale by sqrt(d_k), to make sure that softmax doesn't blow up and converge to onehot vector
+        wei = wei.masked_fill(self.mask[:t, :t]==0, float('-inf'))
         wei = F.softmax(wei, dim=-1)
         out = wei @ v # BxTxT @ BxTxhead_size => BxTxhead_size
+        # when head is single, head_size is equal to emb_size, so shape is same to input
         
         return out
 
@@ -64,7 +68,7 @@ class BigramLMwithAttention(nn.Module):
         self.embedding = nn.Embedding(vocab_size, emb_size)
         self.pos_embedding = nn.Embedding(block_size, emb_size)
 
-        self.sa_head = SelfAttentionBlock(emb_size, emb_size) # at the moment, head_size == emb_size
+        self.sa_head = SelfAttentionBlock(emb_size, block_size, emb_size) # at the moment, head_size == emb_size
 
         self.lm_head = nn.Linear(emb_size, vocab_size)
 
@@ -72,11 +76,11 @@ class BigramLMwithAttention(nn.Module):
         # x -> embeddings: b*t => b*t*c
         embeddings =  self.embedding(x)
         # positional encodings - t*c
-        pos_embeddings = self.pos_embedding(torch.arange(self.block_size, device=x.device))
+        pos_embeddings = self.pos_embedding(torch.arange(x.shape[1], device=x.device))
 
         x = embeddings + pos_embeddings
         x = self.sa_head(x)
-        logits = self.lm_head(x)  
+        logits = self.lm_head(x)  # b*t*c => b*t*vocab_size
 
         if targets is not None:
             # cross-entropy for predicted distribution
@@ -93,7 +97,8 @@ class BigramLMwithAttention(nn.Module):
     
     def generate(self, idx, max_new_tokens):
         for _ in range(max_new_tokens):
-            logits, _ = self(idx)
+            idx_block = idx[:, -self.block_size:] # truncate to block size
+            logits, _ = self(idx_block)
             # last logit in each batch
             logits = logits[:, -1, :]
             # turn logits into probability
