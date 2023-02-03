@@ -8,12 +8,15 @@ from typing import Callable
 import torch
 
 DATA_PATH = './data/input.txt'
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 TRAIN_EPOCH_NUM_STEPS = 5000
-TEST_EPOCH_NUM_STEPS = 200
-LEARNING_RATE = 1e-3
-EMBEDDING_SIZE = 32
-BLOCK_SIZE = 8
+TEST_EPOCH_NUM_STEPS = 1000
+LEARNING_RATE = 3e-4
+EMBEDDING_SIZE = 128
+BLOCK_SIZE = 256
+N_LAYER = 6
+NUM_HEADS = 4
+DROP_PROB = 0.2
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -68,7 +71,7 @@ def generate_sample_text(model: nn.Module, text_length: int, decode_f: Callable,
 def test_inference(model: nn.Module, text_lengths, seed_texts, encode_f: Callable, decode_f: Callable) -> None:
     for l, s in zip(text_lengths, seed_texts):
         print(f"Input seed: {s}")
-        print(f"Generated text:{generate_sample_text(model, l, decode_f, s, encode_f)}\n")
+        print(f"Generated text:\n{generate_sample_text(model, l, decode_f, s, encode_f)}\n")
 
 
 def main():
@@ -78,9 +81,9 @@ def main():
     train_ds, test_ds = preprocess_data(DATA_PATH)
 
     if args.test_inference is not None:
-        m = BigramLMwithAttention(train_ds.vocab_size, EMBEDDING_SIZE, BLOCK_SIZE).to(DEVICE)
+        m = BigramTransformer(train_ds.vocab_size, EMBEDDING_SIZE, BLOCK_SIZE, DROP_PROB, N_LAYER, NUM_HEADS).to(DEVICE)
         m.load_state_dict(torch.load(f'./models/{args.test_inference}'))
-        test_inference(m, [100, 100, 100], ['You cannot', 'Let me be', 'How could you!'], train_ds._encode, train_ds._decode)
+        test_inference(m, [400, 400, 400], ['Enjoy!', 'Thou', 'We'], train_ds._encode, train_ds._decode)
         return
     
     train_block_reader = BlockReader(
@@ -99,7 +102,7 @@ def main():
     )
 
     
-    m = BigramTransformer(train_ds.vocab_size, EMBEDDING_SIZE, BLOCK_SIZE).to(DEVICE)
+    m = BigramTransformer(train_ds.vocab_size, EMBEDDING_SIZE, BLOCK_SIZE, DROP_PROB, N_LAYER, NUM_HEADS).to(DEVICE)
     train_lm(m, train_block_reader, test_block_reader, LEARNING_RATE)
     
     if args.save_model_as is not None:
