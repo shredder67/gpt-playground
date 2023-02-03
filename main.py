@@ -99,7 +99,7 @@ def main():
     )
 
     
-    m = BigramLMwithAttention(train_ds.vocab_size, EMBEDDING_SIZE, BLOCK_SIZE).to(DEVICE)
+    m = BigramTransformer(train_ds.vocab_size, EMBEDDING_SIZE, BLOCK_SIZE).to(DEVICE)
     train_lm(m, train_block_reader, test_block_reader, LEARNING_RATE)
     
     if args.save_model_as is not None:

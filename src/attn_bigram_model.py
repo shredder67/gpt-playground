@@ -64,10 +64,12 @@ class MultiHeadAttention(nn.Module):
         self.head_size = head_size
         self.n_heads = n_heads
         self.heads = nn.ModuleList([SelfAttentionBlock(head_size, block_size, emb_size) for _ in range(n_heads)])
+        self.proj = nn.Linear(emb_size, emb_size)
 
     def forward(self, x):
-        heads = [head(x) for head in self.heads]
-        out = torch.cat(heads, dim=-1)
+        out = [head(x) for head in self.heads]
+        out = torch.cat(out, dim=-1)
+        out = self.proj(out)
         return out
     
 
@@ -75,15 +77,28 @@ class FeedForward(nn.Module):
     def __init__(self, emb_size):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(emb_size, emb_size),
+            nn.Linear(emb_size, 4 * emb_size),
             nn.ReLU(),
+            nn.Linear(4 * emb_size, emb_size)
         )
 
     def forward(self, x):
         return self.net(x)
+    
+class TransformerBlock(nn.Module):
+    def __init__(self, emb_size, block_size, num_heads):
+        super().__init__()
+        head_size = emb_size // num_heads
+        self.sa = MultiHeadAttention(head_size, block_size, emb_size, num_heads)
+        self.ff = FeedForward(emb_size)
+
+    def forward(self, x):
+        x = x + self.sa(x)
+        x = x + self.ff(x)
+        return x
 
 
-class BigramLMwithAttention(nn.Module):
+class BigramTransformer(nn.Module):
     def __init__(self, vocab_size, emb_size, block_size, num_heads=4):
         super().__init__()
         self.block_size = block_size
@@ -93,8 +108,11 @@ class BigramLMwithAttention(nn.Module):
         self.embedding = nn.Embedding(vocab_size, emb_size)
         self.pos_embedding = nn.Embedding(block_size, emb_size)
 
-        self.sa_head = MultiHeadAttention(emb_size//num_heads, block_size, emb_size, num_heads) # at the moment, head_size == emb_size
-        self.ff = FeedForward(emb_size)
+        self.blocks = nn.Sequential(
+            TransformerBlock(emb_size, block_size, num_heads),
+            TransformerBlock(emb_size, block_size, num_heads),
+            TransformerBlock(emb_size, block_size, num_heads),
+        )
         self.lm_head = nn.Linear(emb_size, vocab_size)
 
     def forward(self, x, targets=None):
@@ -104,8 +122,7 @@ class BigramLMwithAttention(nn.Module):
         pos_embeddings = self.pos_embedding(torch.arange(x.shape[1], device=x.device))
 
         x = embeddings + pos_embeddings
-        x = self.sa_head(x)
-        x = self.ff(x)
+        x = self.blocks(x)
         logits = self.lm_head(x)  # b*t*c => b*t*vocab_size
 
         if targets is not None:
