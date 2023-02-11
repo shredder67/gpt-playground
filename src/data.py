@@ -5,7 +5,15 @@ import torch
 
 class TextDataset:
     """Text dataset abstraction over text data fully in-memory"""
-    def __init__(self, text):
+    def __init__(self, data, **kwargs):
+        if isinstance(data, TextDataset): # case when creating a subset of dataset by slicing
+            self.vocab = data.vocab
+            self.vocab_size = data.vocab_size
+            self.stoi = data.stoi
+            self.itos = data.itos
+            self.data = data.data[kwargs['idx']]
+            return
+        text = data
         self.vocab = sorted(list(set(text)))
         self.vocab_size = len(self.vocab)
 
@@ -20,11 +28,20 @@ class TextDataset:
     def _decode(self, indices):
         return ''.join([self.itos[i] for i in indices])
     
+    def train_test_split(self,train_size=0.8):
+        train_indices = slice(int(len(self.data) * train_size))
+        test_indices = slice(int(len(self.data) * train_size), -1)
+        return TextDataset(self, idx=train_indices), TextDataset(self, idx=test_indices)
+        
+    
     def __len__(self):
         return len(self.data)
     
     def __getitem__(self, idx):
         return self.data[idx]
+    
+    def __repr__(self):
+        return f"TextDataset with {self.vocab_size} unique characters and {len(self.data)} characters in total."
 
 
 class BlockReader(Iterable):
@@ -66,12 +83,9 @@ def read_text_data(datapath):
 
 def preprocess_data(datapath='./data/input.txt') -> Tuple[TextDataset, TextDataset]:
     raw_text = read_text_data(datapath)
-
-    n = int(0.9 * len(raw_text))
-    train_text = raw_text[:n]
-    test_text = raw_text[n:]
-
-    train_ds = TextDataset(train_text)
-    test_ds = TextDataset(test_text)
+    text_dataset = TextDataset(raw_text)
+    train_ds, test_ds = text_dataset.train_test_split(0.9)
+    # the reason it is done this way is that to make sure that both train and test datasets have the same vocab
+    # otherwise, the test vocab will be different and the quality of the model will be lower
 
     return train_ds, test_ds

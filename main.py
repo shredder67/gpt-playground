@@ -8,15 +8,18 @@ from typing import Callable
 import torch
 
 DATA_PATH = './data/input.txt'
+
+### Hyperparameters ###
 BATCH_SIZE = 64
 TRAIN_EPOCH_NUM_STEPS = 5000
-TEST_EPOCH_NUM_STEPS = 1000
+TEST_EPOCH_NUM_STEPS = 200
 LEARNING_RATE = 3e-4
-EMBEDDING_SIZE = 128
-BLOCK_SIZE = 256
+EMBEDDING_SIZE = 300
+BLOCK_SIZE = 400
 N_LAYER = 6
-NUM_HEADS = 4
+NUM_HEADS = 6
 DROP_PROB = 0.2
+#######################
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -83,7 +86,7 @@ def main():
     if args.test_inference is not None:
         m = BigramTransformer(train_ds.vocab_size, EMBEDDING_SIZE, BLOCK_SIZE, DROP_PROB, N_LAYER, NUM_HEADS).to(DEVICE)
         m.load_state_dict(torch.load(f'./models/{args.test_inference}'))
-        test_inference(m, [400, 400, 400], ['Enjoy!', 'Thou', 'We'], train_ds._encode, train_ds._decode)
+        test_inference(m, [1000], ['How dare you!'], train_ds._encode, train_ds._decode)
         return
     
     train_block_reader = BlockReader(
@@ -100,6 +103,11 @@ def main():
         length_before_new_iter=TEST_EPOCH_NUM_STEPS,
         device=DEVICE
     )
+
+    # check taht rain_ds and test_ds vocab and stoi, itos are the same
+    assert train_ds.vocab_size == test_ds.vocab_size
+    assert train_ds.stoi == test_ds.stoi
+    assert train_ds.itos == test_ds.itos
 
     
     m = BigramTransformer(train_ds.vocab_size, EMBEDDING_SIZE, BLOCK_SIZE, DROP_PROB, N_LAYER, NUM_HEADS).to(DEVICE)
