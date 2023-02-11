@@ -39,7 +39,7 @@ If you want to train and save you model, you can run (model name doesn't need ex
 python main.py --save_model_as model_name
 ```
 
-To simply train and see sample ouput, run without any arguements.
+To simply train and see sample ouput, run without any arguments.
 
 ## Hyperparameters
 
